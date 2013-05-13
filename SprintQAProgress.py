@@ -42,6 +42,10 @@ def days_hours(x):
 	time.append(hours)
 	return(time)
 
+#def user_tasks(x):
+
+#def user_time(x):
+
 # Usar diccionarios !!!!!
 
 ### INPUT DATA ###
@@ -65,36 +69,61 @@ def days_hours(x):
 #sprintid=312 #(Sprint_35=2_Platform)
 
 # NEOSDP (SERVICES)
-assigneeIDs=['pbg352','ac266','pfg352','EMPTY']
-assigneeNames=['Pablo Bermejo','Alex','Patricia','Unassigned']
-focusFactor=[70,70,70,0]
-vacationDays=[0,0,2,0]
-sprintDays=10
-ongoingSprintDay=1
-sprintid=338 #(Sprint_36=3_Services)
-
-# GRETA
-#assigneeIDs=['njg273', 'laura266', 'cramiro','EMPTY']
-#assigneeNames=['Nelson','Laura','Cristina','Unassigned']
-#focusFactor=[70,70,50,0]
+#assigneeIDs=['pbg352','ac266','pfg352']
+#assigneeIDs=['pbg352','ac266','pfg352','EMPTY']
+#assigneeNames=['Pablo Bermejo','Alex','Patricia']
+#assigneeNames=['Pablo Bermejo','Alex','Patricia','Unassigned']
+#focusFactor=[70,70,70,0]
 #vacationDays=[0,0,2,0]
 #sprintDays=10
 #ongoingSprintDay=1
-#fixVersionid=34098 #(Release 2.3)
+#sprintid='\'Sprint_36=3_Services\''
+
+# GRETA
+assigneeIDs=['njg273', 'laura266', 'cramiro','EMPTY']
+assigneeNames=['Nelson','Laura','Cristina','Unassigned']
+focusFactor=[70,70,50,0]
+vacationDays=[0,0,2,0]
+sprintDays=10
+ongoingSprintDay=6
+fixVersion='\'Release 2_3\'' 
 
 totalSprintSec=sprintDays*28800
 remainingSprintSec = (sprintDays-ongoingSprintDay)*28800
 # 4h (14400sec) - Work Load tolerance
-tolerance = 14400
-	
+toleranceWork = 14400 #4h
+toleranceEstimation = 28800 #1d
+
+
+# Al terminar el with el fichero se cierra automáticamente, no es necesario añadir un close
+
+#with open(newfile, 'w') as outfile, open(oldfile, 'r', encoding='utf-8') as infile:
+#    for line in infile:
+#        if line.startswith(txt):
+#            line = line[0:len(txt)] + ' - Truly a great person!\n'
+#        outfile.write(line)
+
+			
 for assignee in assigneeIDs:
 	### USER INFO ###
-	JQL = 'assignee = ' + str(assignee) + ' AND sprint = ' + str(sprintid)
-	#JQL = 'assignee = ' + str(assignee) + ' AND fixVersion=' + str(fixVersionid) + ' AND status not in (Closed)'
+	# All TASKS
+	#JQL = 'assignee = ' + str(assignee) + ' AND sprint = ' + str(sprintid)  + ' AND issuetype in (Task,Sub-task)'
+	JQL = 'assignee = ' + str(assignee) + ' AND fixVersion = ' + str(fixVersion)  + ' AND issuetype in (Task,Sub-task)'
+	# Ongoing TASKS
+	#JQLOngoing = 'assignee = ' + str(assignee) + ' AND sprint=' + str(sprintid) + ' AND issuetype in (Task,Sub-task) AND status not in (Impeded,Closed)'
+	JQLOngoing = 'assignee = ' + str(assignee) + ' AND fixVersion = ' + str(fixVersion) + ' AND issuetype in (Task,Sub-task) AND status not in (Impeded,Closed)'
+	# Impeded TASKS
+	#JQLImpeded = 'assignee = ' + str(assignee) + ' AND sprint=' + str(sprintid) + ' AND issuetype in (Task,Sub-task) AND status = Impeded'
+	JQLImpeded = 'assignee = ' + str(assignee) + ' AND fixVersion = ' + str(fixVersion) + ' AND issuetype in (Task,Sub-task) AND status = Impeded'
+	# Closed TASKS
+	#JQLClosed = 'assignee = ' + str(assignee) + ' AND sprint=' + str(sprintid) + ' AND issuetype in (Task,Sub-task) AND status = Closed'
+	JQLClosed = 'assignee = ' + str(assignee) + ' AND fixVersion = ' + str(fixVersion) + ' AND issuetype in (Task,Sub-task) AND status = Closed'
+	
 	id = assigneeIDs.index(assignee)
 	assigneeName = assigneeNames[id]
-	print '\n' + assigneeName + ': ' + JQL
-	
+	print '\n*** ' + assigneeName + ' ***'
+	print JQL
+
 	assigneeSprintDays = sprintDays - vacationDays[id]
 	effectiveTime = (focusFactor[id]*assigneeSprintDays)/100
 	effectiveTimeSec = effectiveTime*28800
@@ -103,34 +132,72 @@ for assignee in assigneeIDs:
 	#print [issue.key for issue in jac.search_issues(JQL)]
 
 	### ASSIGNED TASKS INFO ###
+	print '  TASKS'
 	# Estimations for all tasks in the JQL query
 	originalEstimate = [issue.fields.timeoriginalestimate for issue in jac.search_issues(JQL)]
 	
-	NoneTasks = originalEstimate.count(None)
-	print 'Tasks without estimation: ' + str(NoneTasks)
+	NoneTasksNo = originalEstimate.count(None)
 	
 	# Only time estimated tasks in the JQL query is required (Non estimated tasks are filtered)
 	originalEstimate[:] = list(ifilter(check_item, originalEstimate))
 	
-	estimatedTasks = len(originalEstimate)
-	print 'Estimated Tasks: ' + str(estimatedTasks)
+	estimatedTasksNo = len(originalEstimate)
+	print '    Assigned: ' + str(estimatedTasksNo+NoneTasksNo)
+	
+	if NoneTasksNo != 0:
+		print '    (WARN) Tasks without estimation: ' + str(NoneTasksNo)
+	
+	# ONGOING TASKS
+	ongoingTasks = [issue.key for issue in jac.search_issues(JQLOngoing)]
+	ongoingTasksNo = len(ongoingTasks)
+	if ongoingTasksNo !=0:
+		ongoingIssues=[]
+		for issue in ongoingTasks:
+			ongoingIssues.append(str(issue))
+		print '    Ongoing: ' + str(ongoingTasksNo) + ' -> ' + str(ongoingIssues)
+	else:
+		print '    Ongoing: ' + str(ongoingTasksNo)
+		
+	# IMPEDED TASKS
+	impededTasks = [issue.key for issue in jac.search_issues(JQLImpeded)]
+	impededTasksNo = len(impededTasks)
+	if impededTasksNo !=0:
+		impededIssues=[]
+		for issue in impededTasks:
+			impededIssues.append(str(issue))
+		print '    Impeded: ' + str(impededTasksNo) + ' -> ' + str(impededIssues)
+	else:
+		print '    Impeded: ' + str(impededTasksNo)
+		
+	# CLOSED TASKS
+	closedTasks = [issue.key for issue in jac.search_issues(JQLClosed)]
+	closedTasksNo = len(closedTasks)
+	if closedTasksNo !=0:
+		closedIssues=[]
+		for issue in closedTasks:
+			closedIssues.append(str(issue))
+		print '    Closed: ' + str(closedTasksNo) + ' -> ' + str(closedIssues)
+	else:
+		print '    Closed: ' + str(closedTasksNo)
 	
 	### ESTIMATED WORK TIME ###
+	print '  TIME'
 	# Total time in seconds for the estimated tasks
 	originalEstimateSec = sum(originalEstimate)
 	estimatedTime = days_hours(originalEstimateSec)
 	
-	if ((effectiveTimeSec - tolerance) > originalEstimateSec) and assigneeName is not 'Unassigned':
-		print '  Estimated Work Time: ' + str(estimatedTime[0]) + 'd ' + str(estimatedTime[1]) + 'h (Low Work Load)'
-	elif ((effectiveTimeSec + tolerance) < originalEstimateSec) and assigneeName is not 'Unassigned':
-		print '  Estimated Work Time: ' + str(estimatedTime[0]) + 'd ' + str(estimatedTime[1]) + 'h (High Work Load)'
+	if ((effectiveTimeSec - toleranceWork) > originalEstimateSec) and assigneeName is not 'Unassigned':
+		print '    Estimated Work Time: {0}d {1}h (Low Work Load)'.format(str(estimatedTime[0]), str(estimatedTime[1]))
+	elif ((effectiveTimeSec + toleranceWork) < originalEstimateSec) and assigneeName is not 'Unassigned':
+		print '    Estimated Work Time: {0}d {1}h (High Work Load)'.format(str(estimatedTime[0]), str(estimatedTime[1]))
 	else:
-		print '  Estimated Work Time: ' + str(estimatedTime[0]) + 'd ' + str(estimatedTime[1]) + 'h'
+		print '    Estimated Work Time: {0}d {1}h'.format(str(estimatedTime[0]), str(estimatedTime[1]))
 
-	#timeSpent = [issue.fields.timespent for issue in jac.search_issues(JQL)]
-	#timeSpentSum = sum(timeSpent)
-	#print 'Time Spent (sec): ' + str(timeSpentSum)
-
+	timeSpent = [issue.fields.timespent for issue in jac.search_issues(JQL)]
+	timeSpent[:] = list(ifilter(check_item, timeSpent))
+	timeSpentSec = sum(timeSpent)
+	timeSpent = days_hours(timeSpentSec)
+	print '    Logged Time: {0}d {1}h'.format(str(timeSpent[0]), str(timeSpent[1]))
 	
 	### ESTIMATED REMAINING TIME ###
 	remainingEstimate = [issue.fields.timeestimate for issue in jac.search_issues(JQL)]
@@ -139,10 +206,20 @@ for assignee in assigneeIDs:
 	remainingTime = days_hours(remainingEstimateSec)	
 	
 	if (remainingSprintSec > remainingEstimateSec) and assigneeName is not 'Unassigned':
-		print '  Remaining Work Time: ' + str(remainingTime[0]) + 'd ' + str(remainingTime[1]) + 'h (On Time)'
+		print '    Remaining Work Time: {0}d {1}h (On Time)'.format(str(remainingTime[0]), str(remainingTime[1]))
 	elif (remainingSprintSec < remainingEstimateSec) and assigneeName is not 'Unassigned':
-		print '  Remaining Work Time: ' + str(remainingTime[0]) + 'd ' + str(remainingTime[1]) + 'h (Danger)'
+		print '    Remaining Work Time: {0}d {1}h (Danger)'.format(str(remainingTime[0]), str(remainingTime[1]))
 	else:
-		print '  Remaining Work Time: ' + str(remainingTime[0]) + 'd ' + str(remainingTime[1]) + 'h'
+		print '    Remaining Work Time: {0}d {1}h'.format(str(remainingTime[0]), str(remainingTime[1]))
+	
+	workTimeSec = timeSpentSec + remainingEstimateSec
+	workTime = days_hours(workTimeSec)
+	
+	if (workTimeSec - toleranceEstimation > originalEstimateSec) and assigneeName is not 'Unassigned':
+		print '    Real Work Time: {0}d {1}h (Under Estimated)'.format(str(workTime[0]), str(workTime[1]))
+	elif (workTimeSec  + toleranceEstimation < originalEstimateSec) and assigneeName is not 'Unassigned':
+		print '    Real Work Time: {0}d {1}h (Over Estimated)'.format(str(workTime[0]), str(workTime[1]))
+	else:
+		print '    Real Work Time: {0}d {1}h'.format(str(workTime[0]), str(workTime[1]))
 
 
